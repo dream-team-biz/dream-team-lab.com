@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light dark">
+  <title>Anatomy of one task — DreamTeam Lab</title>
+  <meta name="description" content="One real DreamTeam task, from plan to merge: what it built, the four stages the AI agents ran, where I decided, and what it took in time and money.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Public+Sans:ital,wght@0,400;0,600;0,700;1,400;1,500&amp;family=Space+Grotesk:wght@600;700&amp;display=swap">
+  <link rel="stylesheet" href="../assets/style.css">
+  <style>
+    /* One visual note (Brief delta 3) on the shared system (assets/style.css, The Blueprint): the page head
+       (.head-84), the names picture and the results band; section labels; stage cards; the record chart as on
+       the Life Cycle page. Only what the system has no component for lives here: the before/after, the
+       dependency diagram, the Run loop, the acceptance-criteria list, the cost table's plan cell and the
+       folded small print. Tokens only; mobile first.
+       The site's system pass (standards/design-system.md): this page's faces, sizes and weights for the byline,
+       the before/after, the captions, the criteria numerals, the stage strip, the data tables, the plan cell, the notes,
+       the setup and the schema moved to assets/style.css (CSS §22); what stays here is layout. */
+
+    .lab-note strong, .lab-note code { color: var(--ink); }
+    .head-ba { margin-top: 28px; }
+    .head-results { margin-top: 24px; border: 1px solid var(--rule); border-top: 2px solid var(--accent); background: var(--panel); }
+
+    /* Captions under the artifact, no wider than the text (the chart's takeaway keeps its shared style) */
+    .lab-note figcaption:not(.rc-takeaway), .table-note, .steps-key { max-width: var(--measure); }
+    .lab-note figcaption:not(.rc-takeaway), .table-note { margin-top: 10px; }
+    .fig-wide { max-width: 1040px; }
+
+    /* Before → after: drawn as one bold pair (the arrow points down below 900 px, right from 900 px),
+       code verbatim; then the plain-words note, set apart */
+    .code { margin: 0; padding: 12px 14px; font: 400 13px/1.6 var(--mono); color: var(--ink); background: var(--panel); border: 1px solid var(--rule); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .code .k { color: var(--accent); font-weight: 500; }
+    .ba { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: center; }
+    .ba .label { margin-bottom: 8px; }
+    .ba .label b { display: block; }
+    /* The "before" row stays on one line at every width: 30 characters fit 320 px at 15 px */
+    .ba .before .code { padding: 12px 14px; font-size: 15px; font-weight: 500; white-space: pre; overflow-wrap: normal; }
+    .ba .after .code { padding: 14px 16px; font-size: 14px; border: 2px solid var(--accent); }
+    .ba-arrow { margin: 0; text-align: center; transform: rotate(90deg); }
+    .ba-plain { margin-top: 16px; max-width: 760px; }
+    .ba-plain p + p { margin-top: 4px; }
+    @media (min-width: 900px) {
+      .ba { grid-template-columns: max-content auto minmax(0, 1fr); column-gap: 18px; }
+      .ba .before .code { padding: 16px 18px; font-size: 18px; }
+      .ba-arrow { transform: none; }
+    }
+
+    /* The dependency diagram: one source, two drawings — horizontal from 1,040 px, vertical below — over the
+       24 px grid (.bp). Markers live in a separate, always-rendered SVG. */
+    .svg-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .diagram { padding: 14px; border: 1px solid var(--rule); }
+    .diagram svg.dg-h { display: block; width: 100%; height: auto; }
+    .diagram svg.dg-v { display: none; width: 100%; height: auto; max-width: 420px; margin: 0 auto; }
+    .dg .band { fill: var(--line); fill-opacity: .65; stroke: var(--line); stroke-width: 1; }
+    .dg .box { fill: var(--panel); stroke: var(--muted); stroke-width: 1.2; }
+    .dg .box.this { fill: var(--wash-solid); stroke: var(--accent); stroke-width: 2; }
+    .dg .box.closing { fill: var(--sunken); stroke: var(--muted); stroke-dasharray: 4 3; }
+    .dg text { font-family: var(--body); }
+    .dg .id { font-family: var(--mono); font-size: 14px; font-weight: 500; fill: var(--ink); }
+    .dg .nm { font-size: 12.5px; fill: var(--muted); }
+    .dg-v .id { font-size: 15.5px; }
+    .dg-v .nm { font-size: 14.5px; }
+    .dg .wave { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; fill: var(--muted); }
+    .dg-v .wave { font-size: 13px; }
+    .dg .e { fill: none; }
+    .dg .e-build { stroke: var(--accent); stroke-width: 1.7; }
+    .dg .e-need { stroke: var(--data); stroke-width: 2; stroke-dasharray: 6 4; }
+    .dg .e-collide { stroke: var(--muted); stroke-width: 2.6; stroke-dasharray: .1 6; stroke-linecap: round; }
+    .dg .e-close { stroke: var(--accent); stroke-width: 1.2; stroke-opacity: .38; }
+    .mk-build { fill: var(--accent); }
+    .mk-need { fill: var(--data); }
+    .mk-close { fill: var(--accent); fill-opacity: .45; }
+    .mk-collide { fill: var(--muted); }
+    .legend { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px 24px; }
+    .legend li { display: flex; align-items: center; gap: 10px; font-size: 14px; line-height: 1.4; color: var(--muted); }
+    .legend svg, .kinds svg { flex: none; width: 44px; height: 12px; }
+    .narrow-only { display: none; }
+    @media (min-width: 761px) { .legend { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 1039px) {
+      .diagram svg.dg-h { display: none; }
+      .diagram svg.dg-v { display: block; }
+      .narrow-only { display: inline; }
+    }
+
+    /* The acceptance criteria: nine bold one-liners, two columns from 900 px */
+    .ac-list { list-style: none; padding: 0; max-width: 1040px; display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 32px; border-top: 1px solid var(--line); }
+    .ac-list li { display: grid; grid-template-columns: 3.4em minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--line); line-height: 1.45; }
+    @media (min-width: 900px) { .ac-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+    /* AC-3 verbatim, folded: only the summary line and the caption show until it is opened */
+    .contract-box { max-width: 880px; }
+    .contract { background: var(--sunken); }
+    .contract-box details summary { cursor: pointer; font-weight: 600; color: var(--accent); }
+    .contract-box details[open] summary { margin: 0 0 10px; color: var(--muted); }
+
+    /* The stages as one strip of the shared stage cards: Run wider and highlighted, the engineer's three
+       decisions as the cards' amber gate lines; one column below 1024 px */
+    .strip { list-style: none; padding: 0; grid-template-columns: minmax(0, 1fr); row-gap: 28px; }
+    .strip > li { position: relative; display: flex; flex-direction: column; }
+    .strip > li + li::before { content: "↓"; position: absolute; top: -24px; left: 18px; }
+    .strip .sc-body { flex: 1 1 auto; padding: 12px 14px 14px; }
+    .strip .sc-body > * + * { margin-top: 10px; }
+    .strip .sc-catch { color: var(--muted); }
+    .strip .is-run { border: 1.5px solid var(--accent); }
+    .strip .is-run .stage-card-head { background: var(--wash-solid); }
+    @media (min-width: 1024px) {
+      .strip { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr); column-gap: 28px; }
+      .strip > li + li::before { content: "→"; top: 13px; left: -21px; }
+    }
+
+    /* The Run loop: build, review ⇄ fix (at most twice), test; Build highlighted as the step that builds */
+    .loop { display: block; width: 100%; max-width: 340px; height: auto; margin-inline: auto; }
+    .loop .lp-box { fill: var(--panel); stroke: var(--accent); stroke-width: 1.5; }
+    .loop .lp-box.is-build { fill: var(--wash-solid); stroke-width: 2.5; }
+    .loop .lp-e { fill: none; stroke: var(--accent); stroke-width: 1.7; }
+    .loop text { font-family: var(--body); }
+    .loop .lp-t { font-family: var(--head); font-size: 16px; font-weight: 600; fill: var(--ink); }
+    .loop .lp-s { font-size: 12px; fill: var(--muted); }
+    .loop .lp-c { font-family: var(--head); font-size: 15px; font-weight: 700; fill: var(--accent); }
+
+    /* Tables: values in mono; below 560 px each row stacks into one block */
+    .table-wrap { overflow-x: auto; border: 1px solid var(--rule); background: var(--panel); }
+    table.data { width: 100%; border-collapse: collapse; }
+    table.data caption { padding: 12px 14px 4px; text-align: left; }
+    table.data th, table.data td { padding: 9px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); color: var(--muted); }
+    table.data tbody th { font-weight: 600; color: var(--ink); }
+    table.data tbody tr:last-child th, table.data tbody tr:last-child td { border-bottom: 0; }
+    table.data tfoot th, table.data tfoot td { border-top: 2px solid var(--line); border-bottom: 0; font-weight: 600; color: var(--ink); }
+    table.data .num { text-align: right; white-space: nowrap; }
+
+    /* The cost table: the subscription's dollars large, in a column of their own with two short lines under them */
+    .costs-fig { max-width: 780px; }
+    /* Scoped past table.data .num, so the "At Claude API list prices" header wraps at 375 px */
+    table.costs thead th, table.costs thead th.num { white-space: normal; }
+    table.costs tr.total th, table.costs tr.total td { border-top: 2px solid var(--line); font-weight: 600; color: var(--ink); }
+    table.costs th.plan { text-align: center; color: var(--accent); }
+    table.costs td.plan { width: 17em; vertical-align: middle; text-align: left; border-left: 1px solid var(--rule); background: var(--wash); }
+    .plan-big { display: block; white-space: nowrap; }
+    .plan-sub { display: block; margin-top: 8px; }
+    .plan-list { margin: 10px 0 0; padding-left: 16px; }
+    .plan-list li + li { margin-top: 4px; }
+
+    /* The small print: compact folds at the bottom */
+    .small-print .fold { max-width: 1040px; padding: 10px 14px; border: 1px solid var(--line); background: var(--panel); }
+    .small-print .stack > .fold + .fold { margin-top: 10px; }
+    .fold summary { cursor: pointer; font-weight: 600; color: var(--accent); text-wrap: balance; }
+    .fold[open] > summary { color: var(--muted); }
+    .fold > * + * { margin-top: 12px; }
+    .notes { max-width: var(--measure); padding-left: 20px; }
+    .notes > li + li { margin-top: 8px; }
+    .notes .fn-list { margin: 4px 0; padding-left: 22px; }
+    .setup dl { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px 16px; }
+    .setup dd { margin-bottom: 8px; overflow-wrap: anywhere; }
+
+    /* The schema, inside the small print */
+    .schema-body { padding: 14px 16px 16px; }
+    .fields { display: grid; gap: 10px; }
+    .fields > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 12px; background: var(--sunken); border: 1px solid var(--line); }
+    .kinds { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+    .kinds li { display: flex; align-items: center; gap: 8px; }
+    .schema .rule { margin-top: 12px; max-width: var(--measure); }
+    .schema .rule.def { margin: 0 0 12px; }
+    .schema-foot { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+    .schema-foot > span { display: block; text-wrap: balance; }
+
+    @media (min-width: 561px) {
+      .fields > div { grid-template-columns: 5.5em minmax(0, 1fr); gap: 12px; align-items: baseline; }
+      .setup dl { grid-template-columns: 10em minmax(0, 1fr); }
+      .setup dd { margin-bottom: 0; }
+    }
+    @media (max-width: 560px) {
+      table.costs td.plan { width: auto; }
+      .diagram { padding: 12px 8px; }
+      table.data th, table.data td { padding: 8px; }
+      /* Stacked tables (.stacked, not the shared .stack): one block per row, no sideways scroll */
+      table.stacked thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+      table.stacked, table.stacked tbody, table.stacked tfoot, table.stacked tr, table.stacked th, table.stacked td { display: block; }
+      table.stacked caption { display: block; width: 100%; }
+      table.stacked tr { padding: 10px 12px; border-bottom: 1px solid var(--line); }
+      table.stacked tbody tr:last-child { border-bottom: 0; }
+      table.stacked tfoot tr { border-top: 2px solid var(--line); border-bottom: 0; }
+      table.stacked th, table.stacked td, table.stacked tfoot th, table.stacked tfoot td { padding: 2px 0; border: 0; text-align: left; }
+      table.stacked td[data-label] { display: flex; justify-content: space-between; gap: 12px; }
+      table.stacked td[data-label]::before { content: attr(data-label); text-align: left; }
+      table.stacked.links td[data-label], table.stacked.log td[data-label] { display: block; }
+      table.stacked.links td[data-label]::before, table.stacked.log td[data-label]::before { content: attr(data-label) ": "; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="wordmark" href="../index.html"><span class="glyph" aria-hidden="true"></span>DreamTeam <span class="lab">Lab</span></a>
+      <nav class="site-nav" aria-label="Main">
+        <a href="../why.html">Why DreamTeam?</a>
+        <a href="../benefits.html">Benefits</a>
+        <a href="../lifecycle.html">The Life Cycle</a>
+        <a href="../program.html">Your Dream Team<span class="nav-more"> in 8 weeks</span></a>
+        <a href="index.html">Lab notes</a>
+        <a href="../about.html">About</a>
+      </nav>
+      <a class="btn btn-primary header-cta" href="../index.html#contact">Talk to us</a>
+    </div>
+  </header>
+
+  <svg class="svg-defs" aria-hidden="true" focusable="false">
+    <defs>
+      <marker id="mk-build" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path class="mk-build" d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="mk-need" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="mk-need" d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="mk-close" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto"><path class="mk-close" d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="mk-collide" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse"><circle class="mk-collide" cx="5" cy="5" r="4"/></marker>
+    </defs>
+  </svg>
+
+  <main id="main">
+    <article class="lab-note" aria-labelledby="page-title">
+
+      <header class="page-head">
+        <div class="wrap head-84">
+          <div class="head-main">
+            <h1 id="page-title">Anatomy of one task</h1>
+            <p class="lead">One real task, from plan to merge. Our tasks kept stalling halfway on work another task hadn't built yet, so <span class="nw">T-707</span> gave our task board a dependency record: each link now has a kind and a reason.</p>
+            <p class="byline">Lab note · <a href="../about.html">Alex Rapoport</a>, founder of DreamTeam Lab · October 2026</p>
+          </div>
+          <div class="head-side">
+            <figure class="names-map" aria-label="The names: the Dream Team Life Cycle is the methodology; DreamTeam is the agentic team; DreamTeam Lab is the company"><span class="nm-root" aria-hidden="true">Dream Team</span><span class="nm-name" aria-hidden="true">Life Cycle</span><span class="nm-desc" aria-hidden="true">the methodology</span><span class="nm-team" aria-hidden="true">agentic team</span><span class="nm-name" aria-hidden="true">Lab</span><span class="nm-desc" aria-hidden="true">the company</span></figure>
+          </div>
+        </div>
+        <div class="wrap">
+          <figure class="fig-wide head-ba" aria-labelledby="ba-cap">
+            <div class="ba">
+              <div class="before">
+                <p class="label"><b>Before</b> the row on the board</p>
+<pre class="code">depends_on: ['T-703', 'T-701']</pre>
+              </div>
+              <p class="ba-arrow" aria-hidden="true">→</p>
+              <div class="after">
+                <p class="label"><b>After</b> the same row, as the task's demo printed it, the reasons shortened</p>
+<pre class="code">"depends_on": ["T-701", "T-703"],
+"dependencies": {
+  "relations": [
+    { "on": "T-703", <span class="k">"kind": "build-order"</span>,
+      <span class="k">"why": "never refuse before the open tasks' records are filled in"</span> },
+    { "on": "T-701", <span class="k">"kind": "build-order"</span>,
+      <span class="k">"why": "its two checks turn on with this task's switch"</span> }
+  ]
+}</pre>
+              </div>
+            </div>
+            <div class="callout ba-plain">
+              <p>Before, the board knew only that <span class="nw">T-704</span> waits for <span class="nw">T-703</span> and <span class="nw">T-701</span>. <strong>Now it also knows why, and what kind of wait each one is.</strong></p>
+            </div>
+            <figcaption id="ba-cap">Real output from <span class="nw">T-707</span>'s demo, with the two reasons shortened to plain words; the old ID list is now derived from the record.</figcaption>
+          </figure>
+
+          <div class="record-results head-results">
+            <p class="results-label">Results · <span class="nw">T-707</span>, 18–19 September 2026</p>
+            <ul class="results" role="list">
+              <li><a class="num-link" href="#took"><strong class="num-value">20&nbsp;h 25&nbsp;min</strong> <span class="num-label">elapsed, from the first step to the merge</span></a></li>
+              <li><a class="num-link" href="#cost"><strong class="num-value"><span class="num-pre">at least</span> $163</strong> <span class="num-label">at Claude API list prices</span></a></li>
+              <li><a class="num-link" href="#cost"><strong class="num-value"><span class="num-pre">about</span> $5</strong> <span class="num-label">on our Claude subscription</span></a></li>
+              <li><a class="num-link" href="#took"><strong class="num-value">1–2 hours</strong> <span class="num-label">of my time</span></a></li>
+              <li><a class="num-link" href="#action"><strong class="num-value">2 blockers</strong> <span class="num-label">found by a 22-minute review by 4 agents, before any code</span></a></li>
+            </ul>
+          </div>
+        </div>
+      </header>
+
+      <section class="section" aria-labelledby="built">
+        <div class="wrap stack">
+          <p class="sec-label">01 · The first records</p>
+          <h2 id="built">Its first records mapped the nine tasks of its own epic</h2>
+          <p class="intro"><span class="nw">T-707</span> wrote the dependency records for the nine tasks planned with it: 20 connections between those tasks, each now with a kind and a reason.</p>
+
+          <figure class="fig-wide" aria-labelledby="dg-cap">
+            <div class="diagram bp">
+              <svg class="dg dg-h" viewBox="0 0 964 562" role="img" aria-labelledby="dg-title dg-desc">
+                <title id="dg-title">The nine planned tasks of the epic and the links between them, as T-707 wrote them on the board</title>
+                <desc id="dg-desc">Nine tasks in six waves, left to right. Wave 0: T-707, the dependency record (this task). Wave 1: T-699 checks task text, T-701 board checks, T-700 new-task rules. Wave 2: T-705 unmet needs, T-702 proposes records. Wave 3: T-703 fills open tasks. Wave 4: T-704 record required. Wave 5: T-706 closes the epic. Build order: T-699, T-700, T-701, T-702 and T-705 wait for T-707; T-705 also waits for T-699; T-703 waits for T-702; T-704 waits for T-703 and T-701; T-706 waits for all eight others. Needs output: T-702 needs T-699's output. Would collide: T-699 with T-701, and T-700 with T-705.</desc>
+
+                <g aria-hidden="true">
+                  <text class="wave" x="72" y="30" text-anchor="middle">WAVE 0</text>
+                  <text class="wave" x="236" y="30" text-anchor="middle">WAVE 1</text>
+                  <text class="wave" x="400" y="30" text-anchor="middle">WAVE 2</text>
+                  <text class="wave" x="564" y="30" text-anchor="middle">WAVE 3</text>
+                  <text class="wave" x="728" y="30" text-anchor="middle">WAVE 4</text>
+                  <text class="wave" x="892" y="30" text-anchor="middle">WAVE 5</text>
+                </g>
+
+                <g class="edges">
+                  <path class="e e-close" data-from="T-706" data-on="T-707" data-kind="build-order" d="M136 58 H828" marker-end="url(#mk-close)"><title>T-706 waits for T-707 — build order</title></path>
+                  <path class="e e-close" data-from="T-706" data-on="T-699" data-kind="build-order" d="M300 122 H828" marker-end="url(#mk-close)"><title>T-706 waits for T-699 — build order</title></path>
+                  <path class="e e-close" data-from="T-706" data-on="T-701" data-kind="build-order" d="M300 200 H828" marker-end="url(#mk-close)"><title>T-706 waits for T-701 — build order</title></path>
+                  <path class="e e-close" data-from="T-706" data-on="T-700" data-kind="build-order" d="M300 264 H828" marker-end="url(#mk-close)"><title>T-706 waits for T-700 — build order</title></path>
+                  <path class="e e-close" data-from="T-706" data-on="T-705" data-kind="build-order" d="M464 328 H828" marker-end="url(#mk-close)"><title>T-706 waits for T-705 — build order</title></path>
+                  <path class="e e-close" data-from="T-706" data-on="T-702" data-kind="build-order" d="M464 392 H828" marker-end="url(#mk-close)"><title>T-706 waits for T-702 — build order</title></path>
+                  <path class="e e-close" data-from="T-706" data-on="T-703" data-kind="build-order" d="M628 456 H828" marker-end="url(#mk-close)"><title>T-706 waits for T-703 — build order</title></path>
+                  <path class="e e-close" data-from="T-706" data-on="T-704" data-kind="build-order" d="M792 520 H828" marker-end="url(#mk-close)"><title>T-706 waits for T-704 — build order</title></path>
+
+                  <path class="e e-build" data-from="T-699" data-on="T-707" data-kind="build-order" d="M136 78 H154 V134 H172" marker-end="url(#mk-build)"><title>T-699 waits for T-707 — build order</title></path>
+                  <path class="e e-build" data-from="T-701" data-on="T-707" data-kind="build-order" d="M136 78 H154 V212 H172" marker-end="url(#mk-build)"><title>T-701 waits for T-707 — build order</title></path>
+                  <path class="e e-build" data-from="T-700" data-on="T-707" data-kind="build-order" d="M136 78 H154 V276 H172" marker-end="url(#mk-build)"><title>T-700 waits for T-707 — build order</title></path>
+                  <path class="e e-build" data-from="T-705" data-on="T-707" data-kind="build-order" d="M136 78 H154 V334 H336" marker-end="url(#mk-build)"><title>T-705 waits for T-707 — build order</title></path>
+                  <path class="e e-build" data-from="T-702" data-on="T-707" data-kind="build-order" d="M136 78 H154 V398 H336" marker-end="url(#mk-build)"><title>T-702 waits for T-707 — build order</title></path>
+                  <path class="e e-build" data-from="T-705" data-on="T-699" data-kind="build-order" d="M300 142 H318 V348 H336" marker-end="url(#mk-build)"><title>T-705 waits for T-699 — build order</title></path>
+                  <path class="e e-build" data-from="T-704" data-on="T-701" data-kind="build-order" d="M300 220 H652 V524 H664" marker-end="url(#mk-build)"><title>T-704 waits for T-701 — build order</title></path>
+                  <path class="e e-build" data-from="T-703" data-on="T-702" data-kind="build-order" d="M464 412 H482 V462 H500" marker-end="url(#mk-build)"><title>T-703 waits for T-702 — build order</title></path>
+                  <path class="e e-build" data-from="T-704" data-on="T-703" data-kind="build-order" d="M628 476 H644 V538 H664" marker-end="url(#mk-build)"><title>T-704 waits for T-703 — build order</title></path>
+
+                  <path class="e e-need" data-from="T-702" data-on="T-699" data-kind="artifact" d="M300 150 H310 V412 H336" marker-end="url(#mk-need)"><title>T-702 needs T-699's output</title></path>
+                </g>
+
+                <g class="nodes">
+                  <rect class="box this" x="8" y="48" width="128" height="44" rx="2"/>
+                  <text class="id" x="18" y="67">T-707</text><text class="nm" x="18" y="84">Dependency record</text>
+
+                  <rect class="box" x="172" y="112" width="128" height="44" rx="2"/>
+                  <text class="id" x="182" y="131">T-699</text><text class="nm" x="182" y="148">Checks task text</text>
+
+                  <rect class="box" x="172" y="190" width="128" height="44" rx="2"/>
+                  <text class="id" x="182" y="209">T-701</text><text class="nm" x="182" y="226">Board checks</text>
+
+                  <rect class="box" x="172" y="254" width="128" height="44" rx="2"/>
+                  <text class="id" x="182" y="273">T-700</text><text class="nm" x="182" y="290">New-task rules</text>
+
+                  <rect class="box" x="336" y="318" width="128" height="44" rx="2"/>
+                  <text class="id" x="346" y="337">T-705</text><text class="nm" x="346" y="354">Unmet needs</text>
+
+                  <rect class="box" x="336" y="382" width="128" height="44" rx="2"/>
+                  <text class="id" x="346" y="401">T-702</text><text class="nm" x="346" y="418">Proposes records</text>
+
+                  <rect class="box" x="500" y="446" width="128" height="44" rx="2"/>
+                  <text class="id" x="510" y="465">T-703</text><text class="nm" x="510" y="482">Fills open tasks</text>
+
+                  <rect class="box" x="664" y="510" width="128" height="44" rx="2"/>
+                  <text class="id" x="674" y="529">T-704</text><text class="nm" x="674" y="546">Record required</text>
+
+                  <rect class="box closing" x="828" y="48" width="128" height="506" rx="2"/>
+                  <text class="id" x="892" y="280" text-anchor="middle">T-706</text>
+                  <text class="nm" x="892" y="298" text-anchor="middle">Closes the epic</text>
+                  <text class="nm" x="892" y="318" text-anchor="middle">waits for all</text>
+                  <text class="nm" x="892" y="334" text-anchor="middle">eight others</text>
+                </g>
+
+                <g class="edges">
+                  <path class="e e-collide" data-from="T-699" data-on="T-701" data-kind="conflict" d="M270 156 V190" marker-start="url(#mk-collide)" marker-end="url(#mk-collide)"><title>T-699 and T-701 would collide</title></path>
+                  <path class="e e-collide" data-from="T-700" data-on="T-705" data-kind="conflict" d="M284 298 L352 318" marker-start="url(#mk-collide)" marker-end="url(#mk-collide)"><title>T-700 and T-705 would collide</title></path>
+                </g>
+              </svg>
+
+              <svg class="dg dg-v" viewBox="0 0 340 670" role="img" aria-labelledby="dgv-title dgv-desc">
+                <title id="dgv-title">The nine planned tasks of the epic and the links between them, as T-707 wrote them on the board</title>
+                <desc id="dgv-desc">Nine tasks in six waves, top to bottom, one shaded row per wave. Wave 0: T-707, the dependency record (this task). Wave 1: T-701 board checks, T-699 checks task text, T-700 new-task rules. Wave 2: T-702 proposes records, T-705 unmet needs. Wave 3: T-703 fills open tasks. Wave 4: T-704 record required. Wave 5: T-706 closes the epic and waits for all eight others. Build order: T-699, T-700, T-701, T-702 and T-705 wait for T-707; T-705 also waits for T-699; T-703 waits for T-702; T-704 waits for T-703 and T-701. Needs output: T-702 needs T-699's output. Would collide: T-699 with T-701, and T-700 with T-705.</desc>
+
+                <g aria-hidden="true">
+                  <rect class="band" x="0.5" y="14" width="339" height="64" rx="2"/>
+                  <rect class="band" x="0.5" y="122" width="339" height="78" rx="2"/>
+                  <rect class="band" x="0.5" y="252" width="339" height="78" rx="2"/>
+                  <rect class="band" x="0.5" y="378" width="339" height="64" rx="2"/>
+                  <rect class="band" x="0.5" y="490" width="339" height="64" rx="2"/>
+                  <rect class="band" x="0.5" y="590" width="339" height="78" rx="2"/>
+                  <text class="wave" transform="translate(12 46) rotate(-90)" text-anchor="middle" dy="0.35em">WAVE 0</text>
+                  <text class="wave" transform="translate(12 161) rotate(-90)" text-anchor="middle" dy="0.35em">WAVE 1</text>
+                  <text class="wave" transform="translate(12 291) rotate(-90)" text-anchor="middle" dy="0.35em">WAVE 2</text>
+                  <text class="wave" transform="translate(12 410) rotate(-90)" text-anchor="middle" dy="0.35em">WAVE 3</text>
+                  <text class="wave" transform="translate(12 522) rotate(-90)" text-anchor="middle" dy="0.35em">WAVE 4</text>
+                  <text class="wave" transform="translate(12 629) rotate(-90)" text-anchor="middle" dy="0.35em">WAVE 5</text>
+                </g>
+
+                <g transform="translate(20 0)">
+                  <g class="edges">
+                    <path class="e e-build" data-from="T-701" data-on="T-707" data-kind="build-order" d="M85 54 H60 V132" marker-end="url(#mk-build)"><title>T-701 waits for T-707 — build order</title></path>
+                    <path class="e e-build" data-from="T-702" data-on="T-707" data-kind="build-order" d="M85 38 H6 V291 H20" marker-end="url(#mk-build)"><title>T-702 waits for T-707 — build order</title></path>
+                    <path class="e e-build" data-from="T-699" data-on="T-707" data-kind="build-order" d="M170 68 V132" marker-end="url(#mk-build)"><title>T-699 waits for T-707 — build order</title></path>
+                    <path class="e e-build" data-from="T-700" data-on="T-707" data-kind="build-order" d="M235 54 H262 V132" marker-end="url(#mk-build)"><title>T-700 waits for T-707 — build order</title></path>
+                    <path class="e e-build" data-from="T-705" data-on="T-707" data-kind="build-order" d="M235 38 H316 V291 H302" marker-end="url(#mk-build)"><title>T-705 waits for T-707 — build order</title></path>
+                    <path class="e e-build" data-from="T-705" data-on="T-699" data-kind="build-order" d="M196 190 V236 H262 V262" marker-end="url(#mk-build)"><title>T-705 waits for T-699 — build order</title></path>
+                    <path class="e e-need" data-from="T-702" data-on="T-699" data-kind="artifact" d="M150 190 V226 H60 V262" marker-end="url(#mk-need)"><title>T-702 needs T-699's output</title></path>
+                    <path class="e e-build" data-from="T-704" data-on="T-701" data-kind="build-order" d="M86 190 V210 H170 V500" marker-end="url(#mk-build)"><title>T-704 waits for T-701 — build order</title></path>
+                    <path class="e e-build" data-from="T-703" data-on="T-702" data-kind="build-order" d="M60 320 V388" marker-end="url(#mk-build)"><title>T-703 waits for T-702 — build order</title></path>
+                    <path class="e e-build" data-from="T-704" data-on="T-703" data-kind="build-order" d="M88 432 V500" marker-end="url(#mk-build)"><title>T-704 waits for T-703 — build order</title></path>
+                    <path class="e e-close" data-from="T-706" data-on="T-704" data-kind="build-order" d="M140 544 V600" marker-end="url(#mk-close)"><title>T-706 waits for T-704 — build order (and for the seven others)</title></path>
+                  </g>
+
+                  <g class="nodes">
+                    <rect class="box this" x="85" y="24" width="150" height="44" rx="2"/>
+                    <text class="id" x="95" y="43">T-707</text><text class="nm" x="95" y="61">Dependency record</text>
+
+                    <rect class="box" x="16" y="132" width="84" height="58" rx="2"/>
+                    <text class="id" x="24" y="151">T-701</text><text class="nm" x="24" y="169">Board</text><text class="nm" x="24" y="184">checks</text>
+
+                    <rect class="box" x="130" y="132" width="84" height="58" rx="2"/>
+                    <text class="id" x="138" y="151">T-699</text><text class="nm" x="138" y="169">Checks</text><text class="nm" x="138" y="184">task text</text>
+
+                    <rect class="box" x="222" y="132" width="84" height="58" rx="2"/>
+                    <text class="id" x="230" y="151">T-700</text><text class="nm" x="230" y="169">New-task</text><text class="nm" x="230" y="184">rules</text>
+
+                    <rect class="box" x="20" y="262" width="80" height="58" rx="2"/>
+                    <text class="id" x="28" y="281">T-702</text><text class="nm" x="28" y="299">Proposes</text><text class="nm" x="28" y="314">records</text>
+
+                    <rect class="box" x="222" y="262" width="80" height="58" rx="2"/>
+                    <text class="id" x="230" y="281">T-705</text><text class="nm" x="230" y="299">Unmet</text><text class="nm" x="230" y="314">needs</text>
+
+                    <rect class="box" x="20" y="388" width="136" height="44" rx="2"/>
+                    <text class="id" x="28" y="407">T-703</text><text class="nm" x="28" y="425">Fills open tasks</text>
+
+                    <rect class="box" x="60" y="500" width="160" height="44" rx="2"/>
+                    <text class="id" x="70" y="519">T-704</text><text class="nm" x="70" y="537">Record required</text>
+
+                    <rect class="box closing" x="20" y="600" width="282" height="58" rx="2"/>
+                    <text class="id" x="30" y="619">T-706</text><text class="nm" x="30" y="637">Closes the epic;</text><text class="nm" x="30" y="652">waits for all eight others</text>
+                  </g>
+
+                  <g class="edges">
+                    <path class="e e-collide" data-from="T-699" data-on="T-701" data-kind="conflict" d="M100 161 H130" marker-start="url(#mk-collide)" marker-end="url(#mk-collide)"><title>T-699 and T-701 would collide</title></path>
+                    <path class="e e-collide" data-from="T-700" data-on="T-705" data-kind="conflict" d="M290 190 V262" marker-start="url(#mk-collide)" marker-end="url(#mk-collide)"><title>T-700 and T-705 would collide</title></path>
+                  </g>
+                </g>
+              </svg>
+
+              <ul class="legend">
+                <li><svg viewBox="0 0 44 12" aria-hidden="true" class="dg"><path class="e e-build" d="M2 6 H40" marker-end="url(#mk-build)"/></svg><span><strong>Build order</strong> — waits until the other task is done</span></li>
+                <li><svg viewBox="0 0 44 12" aria-hidden="true" class="dg"><path class="e e-need" d="M2 6 H40" marker-end="url(#mk-need)"/></svg><span><strong>Needs output</strong> — uses a file or result the other task produces</span></li>
+                <li><svg viewBox="0 0 44 12" aria-hidden="true" class="dg"><path class="e e-collide" d="M7 6 H37" marker-start="url(#mk-collide)" marker-end="url(#mk-collide)"/></svg><span><strong>Would collide</strong> — should not run at the same time; recorded now, marked on the board from <span class="nw">T-701</span></span></li>
+                <li><svg viewBox="0 0 44 12" aria-hidden="true" class="dg"><path class="e e-close" d="M2 6 H40" marker-end="url(#mk-close)"/></svg><span>Build order into <span class="nw">T-706</span>, the closing task, drawn faint<span class="narrow-only"> (one shown; all eight on wider screens)</span></span></li>
+              </ul>
+            </div>
+            <figcaption id="dg-cap">Every other task in the epic waits on <span class="nw">T-707</span>, directly or through another task; arrows point from the task that comes first. As of 4 October 2026, six of the eight after it are done. Their reasons: in the small print.</figcaption>
+          </figure>
+          <p>How the brainstorm planned these nine tasks, stage by stage: <a href="from-a-problem-to-nine-tasks.html">How a brainstorm turned a problem into nine tasks</a>.</p>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="task">
+        <div class="wrap stack">
+          <p class="sec-label">02 · Acceptance criteria</p>
+          <h2 id="task">Nine acceptance criteria: the definition of done</h2>
+          <ol class="ac-list" role="list">
+            <li><span class="n">AC-1</span> <span><strong>Define the record:</strong> the task it waits for, the kind of wait, and why.</span></li>
+            <li><span class="n">AC-2</span> <span><strong>Keep the old ID list in step with it,</strong> never stopping the board from loading.</span></li>
+            <li><span class="n">AC-3</span> <span><strong>Let people type a record the natural way</strong> with the usual edit command.</span></li>
+            <li><span class="n">AC-4</span> <span><strong>Carry it through spreadsheet import and export.</strong></span></li>
+            <li><span class="n">AC-5</span> <span><strong>Update every link when a task is renumbered.</strong></span></li>
+            <li><span class="n">AC-6</span> <span><strong>The tool that suggests fixes adds to a record, never overwrites it;</strong> a merge of parallel edits flags a clash.</span></li>
+            <li><span class="n">AC-7</span> <span><strong>Give the epic's nine tasks real records,</strong> once AC-5 and AC-6 are in place.</span></li>
+            <li><span class="n">AC-8</span> <span><strong>Test every rule both ways,</strong> on copies of the board.</span></li>
+            <li><span class="n">AC-9</span> <span><strong>Update the design documents</strong> to match AC-2.</span></li>
+          </ol>
+
+          <figure class="contract-box" aria-labelledby="ac3-cap">
+            <details>
+              <summary>Read AC-3 as the agents received it</summary>
+<pre class="code contract">- **AC-3** — `dependencies` joins `SETTABLE_FIELDS`; `update-field &lt;id&gt; dependencies '&lt;yaml-or-json&gt;'` parses the value with **ruamel's YAML 1.2 safe loader** (`ruamel.yaml.YAML(typ="safe")`), **never `yaml.safe_load`** (see the boxed rationale below), guards `isinstance(parsed, dict)`, validates as `DependencyRecord`, stores it and **overwrites** `depends_on` with the sorted projection; a blank or invalid value raises `ValidationError` regardless of severity; `update-field &lt;id&gt; depends_on ...` raises `ValidationError` when the row already carries a record, with a message naming both `update-field &lt;id&gt; dependencies '&lt;record&gt;'` and the `{none: true, reason: "..."}` reset and stating that a record cannot return to undeclared, and keeps today's behaviour when the row has no record. **Regression test (mandatory, `.claude/rules/dt-tests.md` §11 — assert the observable effect, not that the parser accepts input):** the *bare* form `{relations: [{on: T-187, kind: artifact, why: "..."}]}` parses to the key `"on"` (not `True`) and round-trips to a valid `DependencyRecord`; a second case proves a `why` of exactly `no` survives as the string `"no"` (not `False`).
+
+  &gt; **Root cause, established at task-init by direct measurement — this is not a documentation problem.** PyYAML implements **YAML 1.1**; `save_tasks` stores through **ruamel (YAML 1.2)**. Parsing with `yaml.safe_load` would therefore read the record under one YAML version and write it under another, on a single write path. Measured in this venv (PyYAML 6.0.3 / ruamel 0.19.1), five divergences in this record's own shape:
+  &gt;
+  &gt; | Input | `yaml.safe_load` (1.1) | ruamel `typ="safe"` (1.2) |
+  &gt; |---|---|---|
+  &gt; | `{on: T-187}` | `{True: 'T-187'}` ✗ | `{'on': 'T-187'}` ✓ |
+  &gt; | `{why: no}` | `{'why': False}` ✗ | `{'why': 'no'}` ✓ |
+  &gt; | `{why: yes}` | `{'why': True}` ✗ | `{'why': 'yes'}` ✓ |
+  &gt; | `{why: off}` | `{'why': False}` ✗ | `{'why': 'off'}` ✓ |
+  &gt; | `{name: on}` | `{'name': True}` ✗ | `{'name': 'on'}` ✓ |
+  &gt;
+  &gt; The alignment panel found only the first row. Rows 2–5 land on `why` and `name` — **string** fields, where the user sees `Input should be a valid string` on a field they typed correctly. Under `extra="forbid"` the first row is worse still: a *double* error (`Extra inputs are not permitted: True` **and** `Field required: on`) naming neither cause nor remedy. The failure is undiagnosable from its own message, which is why this is fixed in the card rather than left for the worker.
+  &gt;
+  &gt; **Why ruamel and not "mandate the JSON form".** Switching the loader fixes the root cause instead of documenting around it: the natural authoring form becomes correct, and the entire YAML-1.1 scalar-resolution class disappears rather than one key. Verified: ruamel's safe loader also accepts plain JSON (a strict YAML 1.2 subset), so **no authoring form is lost** — both `{relations: [{on: T-187, ...}]}` and `'{"relations": [{"on": "T-187", ...}]}'` parse identically. It costs nothing: `ruamel.yaml&gt;=0.19.1` is already a runtime dependency (`pyproject.toml:30`), already in the `registry-selfcheck` slim install (`.github/workflows/ci.yaml:356`), and already imported by `shared/models/task_schema.py:49`. **Decisively: under this fix the APPROVED LLD's own worked example at `docs/…/BS-117/lld.md:218` is correct exactly as written** — whereas mandating JSON would have required amending an approved v1.1 contract in order to document a trap.
+  &gt;
+  &gt; **Scope boundary.** Do **not** change the existing `run_where` branch's `yaml.safe_load` at `tools/task_ops/core.py:688-731` — it is out of this task's charter and its key/value vocabulary has no YAML 1.1 collisions. Leave a one-line comment at the new `dependencies` branch recording *why* the two branches deliberately use different loaders, so a later reader does not "harmonize" them in the wrong direction.
+  &gt;
+  &gt; **Generated records should still emit JSON** (`json.dumps`) wherever a *tool* builds the string — AC-4's CSV cell and AC-6's remedy — because JSON quoting is safe under shell single-quoting and needs no flow-style escaping for `why` prose containing `:` or `,`. That is an emitter-side convention; both forms remain valid input.</pre>
+            </details>
+            <figcaption id="ac3-cap"><strong>AC-3 in plain words:</strong> how the edit command reads a record that a person types. Verbatim except for one shortened path, rewritten after the alignment review; its last paragraph, on shell quoting, proved wrong in Run.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="action">
+        <div class="wrap stack">
+          <p class="sec-label">03 · The stages</p>
+          <h2 id="action">Agents did the work in four stages; I decided at three points</h2>
+
+          <ol class="stage-cards strip" role="list" aria-label="T-707's four stages and the engineer's three decisions">
+            <li class="stage-card">
+              <div class="stage-card-head"><span class="stage-card-name">Init</span></div>
+              <div class="sc-body">
+                <p><strong>The alignment review:</strong> four agents read the task's contract before any code, and the contract was fixed.</p>
+                <p class="sc-catch"><strong>Caught:</strong> in the design I had approved, a link typed the natural way would have been misread.</p>
+              </div>
+              <p class="stage-card-gate">Engineer: approved the fixed contract</p>
+            </li>
+            <li class="stage-card is-run">
+              <div class="stage-card-head"><span class="stage-card-name">Run</span></div>
+              <div class="sc-body">
+                <svg class="loop" viewBox="0 0 340 236" role="img" aria-labelledby="loop-title loop-desc">
+                  <title id="loop-title">The Run loop</title>
+                  <desc id="loop-desc">Build, then review; review and fix repeat at most twice; then test. A review still failing, or a failing test, stops the run and goes to the engineer.</desc>
+                  <path class="lp-e" d="M90 56 V88" marker-end="url(#mk-build)"/>
+                  <path class="lp-e" d="M160 106 H196" marker-end="url(#mk-build)"/>
+                  <path class="lp-e" d="M200 124 H164" marker-end="url(#mk-build)"/>
+                  <path class="lp-e" d="M90 138 V170" marker-end="url(#mk-build)"/>
+                  <rect class="lp-box is-build" x="20" y="10" width="140" height="46" rx="2"/>
+                  <text class="lp-t" x="90" y="31" text-anchor="middle">Build</text><text class="lp-s" x="90" y="48" text-anchor="middle">developer</text>
+                  <rect class="lp-box" x="20" y="92" width="140" height="46" rx="2"/>
+                  <text class="lp-t" x="90" y="113" text-anchor="middle">Review</text><text class="lp-s" x="90" y="130" text-anchor="middle">reviewer</text>
+                  <rect class="lp-box" x="200" y="92" width="120" height="46" rx="2"/>
+                  <text class="lp-t" x="260" y="113" text-anchor="middle">Fix</text><text class="lp-s" x="260" y="130" text-anchor="middle">whoever built it</text>
+                  <text class="lp-c" x="260" y="160" text-anchor="middle">at most twice</text>
+                  <rect class="lp-box" x="20" y="174" width="140" height="46" rx="2"/>
+                  <text class="lp-t" x="90" y="195" text-anchor="middle">Test</text><text class="lp-s" x="90" y="212" text-anchor="middle">tester</text>
+                  <text class="lp-s" x="176" y="201">passes: on to Finalize</text>
+                </svg>
+                <p class="sc-catch"><strong>Caught:</strong> the reviewer proved one of the contract's claims wrong; the fix came with a test that failed first.</p>
+              </div>
+              <p class="stage-card-gate">Engineer: started Finalize</p>
+            </li>
+            <li class="stage-card">
+              <div class="stage-card-head"><span class="stage-card-name">Finalize</span></div>
+              <div class="sc-body">
+                <p>A last review, and a replay of the task's demo: every command passed.</p>
+              </div>
+              <p class="stage-card-gate">Engineer: approved the result, started the close</p>
+            </li>
+            <li class="stage-card">
+              <div class="stage-card-head"><span class="stage-card-name">Close</span></div>
+              <div class="sc-body">
+                <p>GitHub checked the change again, automatically, on top of the latest code, then merged it.</p>
+              </div>
+            </li>
+          </ol>
+          <p class="steps-key"><span class="key-human">Engineer: my decisions.</span> In Run, review and fix repeat on their own, at most twice; a review still failing, or a failing test, stops the run for the engineer. How control works: <a href="../lifecycle.html#control-title">The Life Cycle</a>.</p>
+        </div>
+      </section>
+
+      <section class="section" id="took" aria-labelledby="took-title">
+        <div class="wrap stack">
+          <p class="sec-label">04 · What it took</p>
+          <h2 id="took-title">Where the time and the money went</h2>
+
+          <div class="record frame">
+            <header class="record-head">
+              <p class="fig-tag">An example · the record</p>
+              <h3 id="proof-title">One real task, measured end to end</h3>
+              <p class="record-source"><span class="task-id">T-707</span> · a DreamTeam feature, built by DreamTeam · the engineer: Alex Rapoport, our founder · 18–19 September 2026 · UTC</p>
+            </header>
+            <p class="record-goal"><span class="k">The task's goal:</span> give every task dependency a kind and a reason <span class="gloss">so our task board says why one task waits for another</span></p>
+
+            <figure class="rchart bp" aria-labelledby="rc-takeaway">
+              <div class="rchart-grid">
+                <div class="rchart-lanes" aria-hidden="true"><span>Stage</span><span>Elapsed</span><span>Who</span></div>
+                <ol class="rchart-rail" role="list" aria-label="T-707's stages, the time between them, and who worked in each" style="--rc-cols: 1fr 1fr .62fr 1.6fr 1fr .9fr .9fr 1fr .8fr">
+                  <li class="rc-stop is-stage">
+                    <div class="rc-node"><span class="rc-mark" aria-hidden="true"></span><span class="rc-box">Init</span></div>
+                    <p class="rc-elapsed"><span class="rc-t">40&nbsp;min</span> <span class="rc-note">excluding the wait at the gate</span></p>
+                    <div class="rc-who"><ul class="rc-roles" role="list"><li>4&nbsp;agents</li></ul><p class="rc-who-note">alignment review</p></div>
+                  </li>
+                  <li class="rc-stop is-gate is-wait">
+                    <div class="rc-node"><span class="rc-mark" aria-hidden="true"></span><span class="visually-hidden">Gate</span></div>
+                    <p class="rc-elapsed"><span class="rc-t">4&nbsp;h 18&nbsp;min</span> <span class="rc-note">waiting for Alex's decision</span></p>
+                    <div class="rc-who"><p class="rc-call">Engineer</p></div>
+                  </li>
+                  <li class="rc-stop is-link">
+                    <div class="rc-node"><span class="rc-mark" aria-hidden="true"></span></div>
+                    <p class="rc-elapsed"><span class="rc-t">28&nbsp;min</span> <span class="rc-note">between stages</span></p>
+                    <div class="rc-who"></div>
+                  </li>
+                  <li class="rc-stop is-stage">
+                    <div class="rc-node"><span class="rc-mark" aria-hidden="true"></span><span class="rc-box">Run</span></div>
+                    <p class="rc-elapsed"><span class="rc-t">8&nbsp;h 15&nbsp;min</span></p>
+                    <div class="rc-who"><ul class="rc-roles" role="list"><li>developer&nbsp;×4</li><li>reviewer&nbsp;×3</li><li>architect&nbsp;×2</li><li>tester&nbsp;×1</li><li>technical writer&nbsp;×1</li></ul></div>
+                  </li>
+                  <li class="rc-stop is-gate is-wait">
+                    <div class="rc-node"><span class="rc-mark" aria-hidden="true"></span><span class="visually-hidden">Gate</span></div>
+                    <p class="rc-elapsed"><span class="rc-t">5&nbsp;h 56&nbsp;min</span> <span class="rc-note">waiting for Alex to start Finalize</span></p>
+                    <div class="rc-who"><p class="rc-call">Engineer starts Finalize</p></div>
+                  </li>
+                  <li class="rc-stop is-stage">
+                    <div class="rc-node"><span class="rc-mark" aria-hidden="true"></span><span class="rc-box">Finalize</span></div>
+                    <p class="rc-elapsed"><span class="rc-t">14&nbsp;min</span> <span class="rc-note">demo replay: 5 of 5 runnable steps passed</span></p>
+                    <div class="rc-who"><ul class="rc-roles" role="list"><li>tester&nbsp;×1</li></ul></div>
+                  </li>
+                  <li class="rc-stop is-gate is-wait">
+                    <div class="rc-node"><span class="rc-mark" aria-hidden="true"></span><span class="visually-hidden">Gate</span></div>
+                    <p class="rc-elapsed"><span class="rc-t">4&nbsp;min</span> <span class="rc-note">the engineer's sign-off: Alex starts Close</span></p>
+                    <div class="rc-who"><p class="rc-call">Engineer</p></div>
+                  </li>
+                  <li class="rc-stop is-stage">
+                    <div class="rc-node"><span class="rc-mark" aria-hidden="true"></span><span class="rc-box">Close</span></div>
+                    <p class="rc-elapsed"><span class="rc-t">30&nbsp;min</span> <span class="rc-note">to the merge</span></p>
+                    <div class="rc-who"><p class="rc-who-note">merge queue: 9 check runs</p></div>
+                  </li>
+                  <li class="rc-stop is-end">
+                    <div class="rc-node"><span class="rc-mark" aria-hidden="true"></span></div>
+                    <p class="rc-elapsed"><span class="rc-t">09:44:21Z</span> <span class="rc-note">merged</span></p>
+                    <div class="rc-who"></div>
+                  </li>
+                </ol>
+              </div>
+
+              <div class="rc-scale">
+                <p class="rc-sum"><span class="rc-key k-stage">stages 9&nbsp;h&nbsp;39&nbsp;min</span> <span class="op">+</span> <span class="rc-key k-wait">waiting for the engineer 10&nbsp;h&nbsp;18&nbsp;min</span> <span class="op">+</span> <span class="rc-key k-gap">other time between stages 28&nbsp;min</span> <span class="op">=</span> <strong>20&nbsp;h&nbsp;25&nbsp;min</strong></p>
+                <details class="rc-details">
+                  <summary>How the parts add up</summary>
+                  <p class="rc-between">Waiting for the engineer: 4&nbsp;h&nbsp;18&nbsp;min at Init's gate, 5&nbsp;h&nbsp;56&nbsp;min from the end of Run until Alex started Finalize, and 4&nbsp;min before his sign-off, starting Close; he starts every stage. Other time between stages: 28&nbsp;min before Run, which includes 3 more minutes waiting for Alex and adding the demo he chose.</p>
+                  <p class="rc-seconds">The record, in seconds: 2,425 + 15,465 + 1,653 + 29,723 + 21,336 + 816 + 268 + 1,807 = 73,493. Minutes are rounded so the parts add up.</p>
+                </details>
+              </div>
+              <figcaption class="rc-takeaway" id="rc-takeaway"><strong>Takeaway:</strong> the agents' stages were less than half of the time; most of the rest, the task waited for the engineer, and it moved on only when he decided.</figcaption>
+            </figure>
+          </div>
+
+          <figure class="costs-fig" id="cost" aria-labelledby="cost-cap">
+            <div class="table-wrap">
+              <table class="data costs">
+                <caption>What <span class="nw">T-707</span> cost</caption>
+                <thead>
+                  <tr><th scope="col">Stage</th><th scope="col" class="num">At Claude API list prices</th><th scope="col" class="plan">Claude Team subscription + DreamTeam cost optimization</th></tr>
+                </thead>
+                <tbody>
+                  <tr><th scope="row">Init, with the alignment review</th><td class="num">$32</td><td class="plan" rowspan="5"><span class="plan-big"><span class="num-pre">about</span> $5</span><ul class="plan-list"><li>Claude Team subscription: a flat price; this task's share of one seat's week</li><li>DreamTeam records every step's tokens and time</li><li>and gives each step the model it needs; big builds run in parts</li></ul><span class="plan-sub plan-open">We keep optimizing the process to do more work for the same money.</span></td></tr>
+                  <tr><th scope="row">Run</th><td class="num">$116</td></tr>
+                  <tr><th scope="row">Finalize</th><td class="num">$4</td></tr>
+                  <tr><th scope="row">Close</th><td class="num">$11</td></tr>
+                  <tr class="total"><th scope="row">Total</th><td class="num">at least&nbsp;$163</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <figcaption id="cost-cap"><strong>Claude API list prices:</strong> what this work costs bought by the token. Method and models: in the small print.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="section" aria-label="An example, not a benchmark">
+        <div class="wrap stack">
+          <p class="callout"><strong>One task is an example, not a benchmark.</strong> <span class="nw">T-707</span> built something new and had no unexpected failure; we haven't yet measured whether fewer tasks stall. This is DreamTeam building itself: there is no outside case to show yet.</p>
+          <p class="actions"><a class="btn btn-primary" href="mailto:sasha@daich.biz,boris@daich.biz">Talk to us about a pilot <span class="arr" aria-hidden="true">→</span></a> <a class="btn btn-ghost" href="../program.html">The pilot: Your Dream Team in 8 weeks</a></p>
+        </div>
+      </section>
+
+      <section class="section small-print" aria-labelledby="sp-title">
+        <div class="wrap stack">
+          <p class="sec-label" id="sp-title">The small print</p>
+
+          <details class="fold">
+            <summary>The 20 connections between the epic's tasks, and their reasons</summary>
+            <div class="table-wrap" role="region" aria-label="The 20 connections between the epic's tasks, and their reasons" tabindex="0">
+              <table class="data stacked links">
+                <caption>The nine dependency records as <span class="nw">T-707</span> wrote them, with their reasons translated</caption>
+                <thead><tr><th scope="col">Task</th><th scope="col">Waits for</th><th scope="col">Kind</th><th scope="col">Why</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row"><span class="nw">T-699</span> Checks task text</th><td data-label="Waits for"><span class="nw">T-707</span></td><td data-label="Kind">build order</td><td data-label="Why">It reads the dependency record, and its list of accepted exceptions, to sort what it finds.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-699</span> Checks task text</th><td data-label="Waits for"><span class="nw">T-701</span></td><td data-label="Kind">would collide</td><td data-label="Why">Both change the same checking tool in different places; no order, but not at the same time.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-700</span> New-task rules</th><td data-label="Waits for"><span class="nw">T-707</span></td><td data-label="Kind">build order</td><td data-label="Why">Its rules tell people to fill in a Dependencies column that the spreadsheet import must already accept.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-700</span> New-task rules</th><td data-label="Waits for"><span class="nw">T-705</span></td><td data-label="Kind">would collide</td><td data-label="Why">Both edit the brainstorm pipeline's steps and the same rules files; no order between them.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-701</span> Board checks</th><td data-label="Waits for"><span class="nw">T-707</span></td><td data-label="Kind">build order</td><td data-label="Why">It shows, checks and counts the dependency record, and reads the switch <span class="nw">T-707</span> adds, which decides whether a missing record gets a warning or a refusal.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-702</span> Proposes records</th><td data-label="Waits for"><span class="nw">T-699</span></td><td data-label="Kind">needs output</td><td data-label="Why">It reuses two parts the text checker builds: the one that finds ordering words and the one that sorts findings.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-702</span> Proposes records</th><td data-label="Waits for"><span class="nw">T-707</span></td><td data-label="Kind">build order</td><td data-label="Why">It writes dependency records only through the edit command <span class="nw">T-707</span> teaches to write them.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-703</span> Fills open tasks</th><td data-label="Waits for"><span class="nw">T-702</span></td><td data-label="Kind">build order</td><td data-label="Why">It runs the proposing tool and writes through it.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-704</span> Record required</th><td data-label="Waits for"><span class="nw">T-703</span></td><td data-label="Kind">build order</td><td data-label="Why">The board must not refuse tasks without a dependency record before the open tasks have one.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-704</span> Record required</th><td data-label="Waits for"><span class="nw">T-701</span></td><td data-label="Kind">build order</td><td data-label="Why">Two checks from <span class="nw">T-701</span> turn on with the switch this task flips; it verifies both afterwards.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-705</span> Unmet needs</th><td data-label="Waits for"><span class="nw">T-707</span></td><td data-label="Kind">build order</td><td data-label="Why">The dependency record's “needs” field exists after <span class="nw">T-707</span>; this task makes it work and adds “provides”.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-705</span> Unmet needs</th><td data-label="Waits for"><span class="nw">T-699</span></td><td data-label="Kind">build order</td><td data-label="Why">Its report of needs that no task provides is part of the text checker.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-706</span> Closes the epic</th><td data-label="Waits for"><span class="nw">T-707</span></td><td data-label="Kind">build order</td><td data-label="Why">It re-checks the dependency record and the ID list derived from it.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-706</span> Closes the epic</th><td data-label="Waits for"><span class="nw">T-699</span></td><td data-label="Kind">build order</td><td data-label="Why">The text checker's strict run is evidence for two of the epic's criteria.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-706</span> Closes the epic</th><td data-label="Waits for"><span class="nw">T-700</span></td><td data-label="Kind">build order</td><td data-label="Why">It checks the five places where tasks are created for the new rules.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-706</span> Closes the epic</th><td data-label="Waits for"><span class="nw">T-701</span></td><td data-label="Kind">build order</td><td data-label="Why">It inspects what <span class="nw">T-701</span> adds: the dependency section in each task contract, a board check, and a mark on tasks that would collide.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-706</span> Closes the epic</th><td data-label="Waits for"><span class="nw">T-702</span></td><td data-label="Kind">build order</td><td data-label="Why">The proposing tool's reports are its audit trail.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-706</span> Closes the epic</th><td data-label="Waits for"><span class="nw">T-703</span></td><td data-label="Kind">build order</td><td data-label="Why">It grades the board after the open tasks are filled in.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-706</span> Closes the epic</th><td data-label="Waits for"><span class="nw">T-704</span></td><td data-label="Kind">build order</td><td data-label="Why">One of the epic's criteria can't pass until the dependency record is required.</td></tr>
+                  <tr><th scope="row"><span class="nw">T-706</span> Closes the epic</th><td data-label="Waits for"><span class="nw">T-705</span></td><td data-label="Kind">build order</td><td data-label="Why">It grades the needs-and-provides behavior.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="table-note">Links added after <span class="nw">T-707</span> merged are not shown, such as <span class="nw">T-701</span> waiting for <span class="nw">T-700</span>, by my ruling on 19 September.</p>
+          </details>
+
+          <details class="fold schema">
+            <summary>What every link in a dependency record carries</summary>
+            <div class="record">
+              <div class="schema-body">
+              <p class="rule def">A schema is the fixed shape every record must have; each dependency record is validated against it.</p>
+              <dl class="fields">
+                <div><dt><code>on</code></dt><dd>The task it waits for, by ID, such as <code class="nw">T-703</code></dd></div>
+                <div><dt><code>kind</code></dt><dd>One of three kinds:
+                  <ul class="kinds">
+                    <li><svg viewBox="0 0 44 12" aria-hidden="true" class="dg"><path class="e e-build" d="M2 6 H40" marker-end="url(#mk-build)"/></svg><span><b>build order</b>: runs after the other task</span></li>
+                    <li><svg viewBox="0 0 44 12" aria-hidden="true" class="dg"><path class="e e-need" d="M2 6 H40" marker-end="url(#mk-need)"/></svg><span><b>needs output</b> (<code>artifact</code>): uses something the other task produces</span></li>
+                    <li><svg viewBox="0 0 44 12" aria-hidden="true" class="dg"><path class="e e-collide" d="M7 6 H37" marker-start="url(#mk-collide)" marker-end="url(#mk-collide)"/></svg><span><b>would collide</b> (<code>conflict</code>): must not run at the same time</span></li>
+                  </ul></dd></div>
+                <div><dt><code>why</code></dt><dd>The reason, in words: never blank, 200 characters at most</dd></div>
+              </dl>
+              <p class="rule"><strong>Three states.</strong> A task has no record yet, or an explicit “no dependency” (<code>none: true</code>) with a reason, or one or more links. It can't go back to no record. <span class="nw">T-707</span>'s own record is the second kind: “first task of the epic; it creates the record every other card declares against” (a card is a task contract).</p>
+              <p class="rule"><strong>Derived, not typed.</strong> The old ID list is rebuilt from the links, sorted and without the collide links, so every tool that reads it works unchanged.</p>
+              <p class="rule"><strong>Rejected:</strong> an unknown kind, a blank or over-long reason, a malformed task ID, the same task and kind twice, a link to the task itself, an unknown field.</p>
+              <p class="rule"><strong>Warn now, refuse later.</strong> Each load of the board warns once with the number of open tasks that have no record. <span class="nw">T-704</span>, not done as of 4 October 2026, is planned to make the board refuse new tasks without one. <span class="nw">T-703</span> has already filled in records for 72 open tasks (one new row was left out).</p>
+              <p class="schema-foot"><span>The epic's nine records: <span class="nw">17 build order</span>&nbsp;· <span class="nw">1 needs output</span>&nbsp;· <span class="nw">2 would collide</span></span><span>The feature: <span class="nw">6 production files</span>&nbsp;+ <span class="nw">9 test files</span>, <span class="nw">+4,216&nbsp;/&nbsp;−27 lines</span></span></p>
+              </div>
+            </div>
+          </details>
+
+          <details class="fold">
+            <summary>The run, step by step: <span class="nw">T-707</span>'s record, shortened</summary>
+            <div class="table-wrap">
+              <table class="data stacked log">
+                <caption>From the runlog and the session transcripts; 18–19 September 2026, UTC</caption>
+                <thead><tr><th scope="col">Time</th><th scope="col">Who</th><th scope="col">What happened</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">18 Sep 13:20–13:42</th><td data-label="Who">4 agents</td><td data-label="What happened">Alignment review, before any code: 3 “concerns”, 1 “ready”; 2 blockers, a risk in the order of work, 3 gaps in scope. One blocker: a YAML 1.1 loader reads a bare “on” as true. Separately, one row whose record and ID list disagreed would have stopped the whole board from loading.</td></tr>
+                  <tr><th scope="row">13:42–18:00</th><td data-label="Who">Alex</td><td data-label="What happened">At the gate: approved correcting the ID list on load, with a logged warning, and kept the task whole, so the protections for renumbering and merging (AC-5, AC-6) land before the nine live records</td></tr>
+                  <tr><th scope="row">18:30–18:37</th><td data-label="Who">Alex</td><td data-label="What happened">Chose the before/after demo the orchestrator proposed</td></tr>
+                  <tr><th scope="row">18:46–01:07</th><td data-label="Who">developer</td><td data-label="What happened">AC-1 to AC-8 with their new tests, in three parts: 35&nbsp;min, 3&nbsp;h&nbsp;42&nbsp;min, 2&nbsp;h&nbsp;4&nbsp;min</td></tr>
+                  <tr><th scope="row">19 Sep 01:08–01:17</th><td data-label="Who">architect</td><td data-label="What happened">The design documents, to match my decision at the gate (AC-9)</td></tr>
+                  <tr><th scope="row">01:16–01:38</th><td data-label="Who">reviewer</td><td data-label="What happened">“0 CRITICAL/0 HIGH. 1 MEDIUM (M-1: epic_registry remedy docstring claims JSON-in-single-quotes is shell-safe; false for a why containing an apostrophe - reproduced live, not a security issue since the string is emitted not executed, but the safety claim is wrong). 5 LOW … all accepted, no action”</td></tr>
+                  <tr><th scope="row">01:38–01:45</th><td data-label="Who">developer</td><td data-label="What happened">The fix, with <code>test_apostrophe_in_why_round_trips_byte_for_byte</code>, failing first, then passing</td></tr>
+                  <tr><th scope="row">01:45–02:32</th><td data-label="Who">tester</td><td data-label="What happened">The 378 tests selected for this change: 375 passed, 3 skipped as before. The full regression: 15,680 passed, 0 failed (38&nbsp;min 01&nbsp;s). All nine criteria checked against the code</td></tr>
+                  <tr><th scope="row">02:33–02:50</th><td data-label="Who">reviewer</td><td data-label="What happened">Design review: sent the documents back once (they still said exit code 1, the shipped code returns 2); approved in round 2 of at most 2</td></tr>
+                  <tr><th scope="row">02:50–03:00</th><td data-label="Who">technical writer</td><td data-label="What happened">The change documented; Run ends</td></tr>
+                  <tr><th scope="row">08:56–09:09</th><td data-label="Who">tester, orchestrator</td><td data-label="What happened">The last review; the demo replay: all 5 steps that run commands passed. Step 5, a write the tool must refuse, only explains; its 27 tests, on copies of the board, ran as step 6</td></tr>
+                  <tr><th scope="row">09:12</th><td data-label="Who">Alex</td><td data-label="What happened">Approved the result by starting the close, on the run report, the review findings and the demo replay, not the line-by-line diff</td></tr>
+                  <tr><th scope="row">09:32–09:44</th><td data-label="Who">merge queue</td><td data-label="What happened">Commit 953d683f, tested on top of the latest main: all 9 check runs passed, the 5 required among them; merged 09:44:21</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="table-note">The run's verdict: “Complete-with-follow-ups”, none blocking. Among them: a board check catches a record and its ID list drifting apart, but its message doesn't say so; a board-wide rule (“always error”) was deferred, and a later task has reshaped it; the task's own board row still shows its criteria as worded before Init.</p>
+          </details>
+
+          <details class="fold">
+            <summary>The five required checks, in plain words</summary>
+            <div class="table-wrap">
+              <table class="data">
+                <caption>Required by GitHub before the merge</caption>
+                <tbody>
+                  <tr><th scope="row"><code>gate</code></th><td>Runs first and decides which other checks the change needs</td></tr>
+                  <tr><th scope="row"><code>test-ubuntu (3.11)</code></th><td>Code style, type checks and the test suite, on Linux with Python 3.11</td></tr>
+                  <tr><th scope="row"><code>registry-selfcheck</code></th><td>The task board is consistent with itself</td></tr>
+                  <tr><th scope="row"><code>check-duplicate-ids</code></th><td>No two tasks, brainstorms, research items or decisions share an ID</td></tr>
+                  <tr><th scope="row"><code>conflict-union</code></th><td>The task board and the decision log still hold together with the change on top of the latest main</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="table-note">The other 4 checks that ran aren't required; one tests what differs on Windows: line endings, text encoding and file paths. From DreamTeam's <code>config/required-checks.yaml</code>, <code>config/github-ruleset.json</code> L41–79 and <code>.github/workflows/ci.yaml</code>.</p>
+          </details>
+
+          <details class="fold">
+            <summary>Tokens, dollars and models, per stage and role</summary>
+            <div class="table-wrap" role="region" aria-labelledby="tok-cap" tabindex="0">
+              <table class="data stacked tok">
+                <caption id="tok-cap">Measured: tokens and dollars at Claude API list prices, and our Claude subscription for the whole task</caption>
+                <thead>
+                  <tr><th scope="col">Stage and role</th><th scope="col">Model</th><th scope="col" class="num">New input</th><th scope="col" class="num">Read from cache</th><th scope="col" class="num">Written to cache</th><th scope="col" class="num">Output</th><th scope="col" class="num">Dollars</th></tr>
+                </thead>
+                <tbody>
+                  <tr><th scope="row">Init: orchestrator</th><td data-label="Model">Opus 5</td><td class="num" data-label="New input">128</td><td class="num" data-label="Read from cache">15,621,814</td><td class="num" data-label="Written to cache">375,398</td><td class="num" data-label="Output">71,549</td><td class="num" data-label="Dollars">$11.95</td></tr>
+                  <tr><th scope="row">Init: alignment review, 4 agents</th><td data-label="Model">Opus 5</td><td class="num" data-label="New input">314</td><td class="num" data-label="Read from cache">22,460,442</td><td class="num" data-label="Written to cache">726,213</td><td class="num" data-label="Output">157,787</td><td class="num" data-label="Dollars">$19.72</td></tr>
+                  <tr><th scope="row">Run: orchestrator</th><td data-label="Model">Opus 5, Sonnet 5 from 01:18</td><td class="num" data-label="New input">108</td><td class="num" data-label="Read from cache">14,863,609</td><td class="num" data-label="Written to cache">1,040,542</td><td class="num" data-label="Output">81,200</td><td class="num" data-label="Dollars">$10.91</td></tr>
+                  <tr><th scope="row">Run: developer, 4 runs</th><td data-label="Model">Opus 5</td><td class="num" data-label="New input">526</td><td class="num" data-label="Read from cache">66,586,288</td><td class="num" data-label="Written to cache">5,821,191</td><td class="num" data-label="Output">50,200</td><td class="num" data-label="Dollars">$70.93</td></tr>
+                  <tr><th scope="row">Run: reviewer, 3 runs</th><td data-label="Model">Opus 5</td><td class="num" data-label="New input">182</td><td class="num" data-label="Read from cache">18,354,956</td><td class="num" data-label="Written to cache">984,510</td><td class="num" data-label="Output">12,105</td><td class="num" data-label="Dollars">$15.63</td></tr>
+                  <tr><th scope="row">Run: architect, 2 runs</th><td data-label="Model">Opus 5</td><td class="num" data-label="New input">86</td><td class="num" data-label="Read from cache">9,027,111</td><td class="num" data-label="Written to cache">517,344</td><td class="num" data-label="Output">6,388</td><td class="num" data-label="Dollars">$7.91</td></tr>
+                  <tr><th scope="row">Run: tester</th><td data-label="Model">Sonnet 5</td><td class="num" data-label="New input">196</td><td class="num" data-label="Read from cache">27,525,503</td><td class="num" data-label="Written to cache">1,412,870</td><td class="num" data-label="Output">1,190</td><td class="num" data-label="Dollars">$9.05</td></tr>
+                  <tr><th scope="row">Run: technical writer</th><td data-label="Model">Sonnet 5</td><td class="num" data-label="New input">62</td><td class="num" data-label="Read from cache">6,868,330</td><td class="num" data-label="Written to cache">267,457</td><td class="num" data-label="Output">4,760</td><td class="num" data-label="Dollars">$2.09</td></tr>
+                  <tr><th scope="row">Finalize: orchestrator</th><td data-label="Model">Opus 5</td><td class="num" data-label="New input">22</td><td class="num" data-label="Read from cache">2,822,556</td><td class="num" data-label="Written to cache">20,330</td><td class="num" data-label="Output">11,760</td><td class="num" data-label="Dollars">$1.83</td></tr>
+                  <tr><th scope="row">Finalize: tester</th><td data-label="Model">Sonnet 5</td><td class="num" data-label="New input">38</td><td class="num" data-label="Read from cache">4,672,053</td><td class="num" data-label="Written to cache">335,008</td><td class="num" data-label="Output">68</td><td class="num" data-label="Dollars">$1.77</td></tr>
+                  <tr><th scope="row">Close: orchestrator</th><td data-label="Model">Opus 5, Sonnet 5 after the merge</td><td class="num" data-label="New input">150</td><td class="num" data-label="Read from cache">18,828,202</td><td class="num" data-label="Written to cache">526,553</td><td class="num" data-label="Output">49,978</td><td class="num" data-label="Dollars">$11.29</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr><th scope="row">Total at Claude API list prices</th><td></td><td class="num" data-label="New input">1,812</td><td class="num" data-label="Read from cache">207,630,864</td><td class="num" data-label="Written to cache">12,027,416</td><td class="num" data-label="Output">446,985</td><td class="num" data-label="Dollars">$163.09</td></tr>
+                  <tr><th scope="row">On our Claude Team subscription, for the whole task</th><td class="num" colspan="6" data-label="Dollars">$4.75</td></tr>
+                </tfoot>
+              </table>
+            </div>
+            <p class="table-note">Most tokens are agents re-reading their conversation so far from a cache, at a lower rate: about 94% of the measured $163 was that context, and output about 6%, or about 11% adding the workers' output the record misses. The run split the developer's work into three parts to keep each agent's context bounded. The developer ran on Opus because the task set its model; the routing line in the runlog: “step_implement=@dev-backend/coding, overridden to opus by task-level Model (Step 5 only) … step_test=@tester/coding=sonnet”. Opus 5 is Anthropic's more capable and pricier model; Sonnet 5 a cheaper one. Rows are rounded to the cent, so they add up to $163.08.</p>
+          </details>
+
+          <details class="fold">
+            <summary>Notes on the numbers, and the sources</summary>
+            <ol class="notes">
+              <li>Before <span class="nw">T-707</span>, on 17 September 2026, 264 of 685 tasks on our board recorded no dependency, and 47 stated an ordering only in text the board doesn't read. The brainstorm behind the epic found seven kinds of ordering constraint:
+                <ol class="fn-list">
+                  <li>build order: a task needs a mechanism another task builds;</li>
+                  <li>needs output: a task needs a file or result another task produces;</li>
+                  <li>would collide: two tasks change the same files, with no order between them;</li>
+                  <li>ordering between one task's own criteria;</li>
+                  <li>work that must land in a single commit, one saved change to the code;</li>
+                  <li>a need that no task provides;</li>
+                  <li>an agreement (an interface, file or value) that no one defined before the code was written.</li>
+                </ol>
+                Only the first two fit “this task must follow that one”. The dependency record covers the first three; the fourth and fifth are out of scope by design; <span class="nw">T-705</span> reports the sixth; the seventh fits a link only in part.</li>
+              <li>The $163 is a lower bound, priced from the token counts in <span class="nw">T-707</span>'s record at DreamTeam's rate table v2.3 (read 4 October 2026; last refreshed against Anthropic's pricing page on 29 September). The alignment review left no token rows; its cost, $19.72, was recovered from the session transcript. The record leaves out some orchestrator calls and undercounts the agents' output; every write to the cache is priced at the five-minute rate. Not reconciled with any invoice. Neither price includes people's time, the brainstorm that planned the work, or building DreamTeam itself.</li>
+              <li>The subscription's $5: <span class="nw">T-707</span> ran on one seat of our Team plan; a seat costs $125 a month, so about $28.85 a week. <span class="nw">T-707</span> was 16.5% of that seat's recorded work that week, $4.75: its share of everything the seat did in Claude Code, the tool our agents run in, from 14 to 21 September, each call weighted by its list price. Both sides of the share come from the seat's session transcripts, not from the $163. An upper bound: any use of the seat outside those transcripts would lower it. Per-step tokens and time: DreamTeam's <code>tools/pipeline_timing.py</code> and <code>tools/telemetry_task_cost.py</code>; the model for each step: <code>.claude/commands/dt-task-run.md</code> L23 and <span class="nw">T-707</span>'s runlog L20.</li>
+              <li>The task took 16 agent runs in 4 sessions, one per stage. My part was six messages: the four commands that started the stages and two answers before Run.</li>
+            </ol>
+            <div class="setup">
+              <dl>
+                <dt>Task</dt><dd><span class="nw">T-707</span>, 18–19 September 2026; merged as commit 953d683f at 09:44:21 UTC through GitHub's merge queue</dd>
+                <dt>Models, as served</dt><dd><code>claude-opus-5</code> (Opus 5) and <code>claude-sonnet-5</code> (Sonnet 5)</dd>
+                <dt>Record files</dt><dd>The task contract (<code>tcb.md</code>), <code>runlog.md</code>, <code>rollup.json</code>, <code>timing_tokens.csv</code>, <code>squash-trace.json</code>, <code>approval-findings.json</code>, <code>showcase/playback.json</code> and the decision record; the four session transcripts; the brainstorm's vision and plan</dd>
+                <dt>Excerpts</dt><dd>Verbatim from the task's record, kept in our private code repository; the “after” block is reflowed to fit</dd>
+              </dl>
+            </div>
+          </details>
+        </div>
+      </section>
+    </article>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p class="slogan"><span class="glyph" aria-hidden="true"></span><span><span class="nw">Dream it.</span> <span class="nw">Dream Team it.</span> <span class="nw">Ship it.</span></span></p>
+      <nav aria-label="Footer">
+        <a href="../why.html">Why DreamTeam?</a>
+        <a href="../benefits.html">Benefits</a>
+        <a href="../lifecycle.html">The Life Cycle</a>
+        <a href="../program.html">Your Dream Team in 8 weeks</a>
+        <a href="index.html">Lab notes</a>
+        <a href="../about.html">About</a>
+      </nav>
+      <p class="colophon">DreamTeam Lab · Built on Claude Code and GitHub · ©&nbsp;2026</p>
+    </div>
+  </footer>
+</body>
+</html>
